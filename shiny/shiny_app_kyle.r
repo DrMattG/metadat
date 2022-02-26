@@ -23,37 +23,57 @@ server <- shinyServer(function(input, output, session) {
    description  <- lapply(description, function(x) strsplit(x, "\n\\if{html}", fixed=TRUE)[[1]][1])
    concepts.raw <- lapply(db, tools:::.Rd_get_metadata, "concept")
 
-   # all concept terms used so far split by fields, measures, and methods
    fields   <- c("alternative medicine", "attraction", "cardiology", "climate change", "covid-19", "criminology", "dentistry", "ecology", "education", "engineering", "epidemiology", "evolution", "human factors", "medicine", "memory", "obstetrics", "oncology", "persuasion", "primary care", "psychiatry", "psychology", "smoking", "social work", "sociology")
    measures <- c("correlation coefficients", "Cronbach's alpha", "hazard ratios", "incidence rates", "raw mean differences", "odds ratios", "proportions", "ratios of means", "raw means", "risk differences", "risk ratios", "(semi-)partial correlations", "standardized mean changes", "standardized mean differences")
    methods  <- c("cluster-robust inference", "component network meta-analysis", "cumulative meta-analysis", "diagnostic accuracy studies", "dose response models", "generalized linear models", "longitudinal models", "Mantel-Haenszel method", "meta-regression", "model checks", "multilevel models", "multivariate models", "network meta-analysis", "outliers", "Peto's method", "phylogeny", "publication bias", "reliability generalization", "single-arm studies", "spatial correlation")
-
-   # for each dataset, collapse multiple terms (within these categories) down into a single comma-separated string
-   tab.fields   <- sapply(concepts.raw, function(x) paste0(fields[fields %in% x], collapse=", "))
-   tab.measures <- sapply(concepts.raw, function(x) paste0(measures[measures %in% x], collapse=", "))
-   tab.methods  <- sapply(concepts.raw, function(x) paste0(methods[methods %in% x], collapse=", "))
-
-   # create the data frame
-   df <- as.data.frame(cbind(name, title, description, tab.fields, tab.measures, tab.methods))
-   df$name <- paste0("<a href='https://wviechtb.github.io/metadat/reference/", name, ".html'>", name, "</a>")
-
+   
+   fields   <- sapply(concepts.raw, function(x) paste0(fields[fields %in% x], collapse=", "))
+   measures <- sapply(concepts.raw, function(x) paste0(measures[measures %in% x], collapse=", "))
+   methods  <- sapply(concepts.raw, function(x) paste0(methods[methods %in% x], collapse=", "))
+   
+   dataExtracted <- as.data.frame(cbind(name, title, description, fields, measures, methods))
+   df <- dataExtracted
+   df$name <- paste0(
+      "<a href='",
+      "https://wviechtb.github.io/metadat/reference/",
+      name,
+      ".html",
+      "'>",
+      name,
+      "</a>"
+   )
+   
    options(DT.options = list(pageLength = 15))
 
    # output data table
    table_export <- DT::datatable(
       df,
       escape = FALSE,
-      extensions = c("SearchPanes", "Select"),
-      selection = "none",
-      colnames = cbind("Documentation", "Title", "Study Description", "Fields", "Measures", "Methods"),
-      rownames = FALSE,
-      options = list(dom = "Pfrtip",
-                     columnDefs = list(
-                     #list(searchPanes = list(show = FALSE), targets = 1:3),
-                     list(searchPanes = list(show = FALSE), targets = c(0, 1, 2))
-                     ))
+      extensions = c('Select', 'SearchPanes'),
+      selection = 'none',
+      options = list(
+         dom = "Pfrtip", 
+         searchPanes = list(
+            threshold = 1,
+            columns = list(6)
+         ),
+         columnDefs = list(
+            list(
+               targets = 6,
+               render = JS(
+                  "function (data, type, row) {",
+                  "  if (type === 'sp') {",
+                  "    return data.split(', ');",
+                  "  }",
+                  "  return data;",
+                  "}"
+               ),
+               searchPanes = list(orthogonal = "sp")
+            )
+         )
+      )
    )
-
+   
    output$tableOutput = DT::renderDataTable(table_export, server = FALSE)
 
 })
